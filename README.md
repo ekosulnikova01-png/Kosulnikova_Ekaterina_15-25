@@ -40,3 +40,41 @@ ORDER BY idx_scan DESC;
 FROM pg_catalog.pg_statio_user_tables
 ORDER BY pg_total_relation_size(relid) DESC;
 ```
+
+## Роли и права доступа
+
+Для проверки работоспособности ролей, были выполнены следующие тесты:
+
+**1. Проверка роли analyst (Аналитик):**
+Аналитик не должен видеть персональные данные. Если он попытается сделать запрос к оригинальной таблице клиентов, СУБД выдаст ошибку:
+```sql
+SET ROLE analyst;
+SELECT * FROM customers;
+``` 
+Результат: ERROR: permission denied for table customers
+
+Однако он успешно может читать обезличенное представление:
+
+```sql
+SELECT * FROM v_customers_anonymized;
+```
+Результат: Успешно (телефоны скрыты как '***')
+
+2. Проверка роли pos_cashier (Кассир):
+Кассир не имеет права удалять чеки:
+
+```sql
+SET ROLE pos_cashier;
+DELETE FROM receipts WHERE receipt_id = 1;
+```
+Результат: ERROR: permission denied for table receipts
+3. Проверка роли store_manager (Менеджер):
+Менеджер может менять цену товара, но не имеет прав на создание новых таблиц:
+
+```sql
+SET ROLE store_manager;
+UPDATE products SET price = 100.00 WHERE product_id = 1;
+-- Результат: UPDATE 1 (успешно)
+DROP TABLE products;
+-- Результат: ERROR: must be owner of table products
+```
